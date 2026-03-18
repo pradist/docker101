@@ -61,29 +61,36 @@ cd compose-demo
 
 ### Step 2 — Create the web app
 
-Create `app.py`:
+Create `main.go`:
 
-```python
-# app.py
-import os
-from http.server import HTTPServer, BaseHTTPRequestHandler
+```go
+// main.go
+package main
 
-APP_ENV  = os.environ.get("APP_ENV", "development")
-APP_NAME = os.environ.get("APP_NAME", "MyApp")
+import (
+  "fmt"
+  "log"
+  "net/http"
+  "os"
+)
 
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        msg = f"Hello from {APP_NAME}! Environment: {APP_ENV}\n"
-        self.wfile.write(msg.encode())
+func handler(w http.ResponseWriter, r *http.Request) {
+  appEnv  := os.Getenv("APP_ENV")
+  appName := os.Getenv("APP_NAME")
+  if appEnv == "" {
+    appEnv = "development"
+  }
+  if appName == "" {
+    appName = "MyApp"
+  }
+  fmt.Fprintf(w, "Hello from %s! Environment: %s\n", appName, appEnv)
+}
 
-    def log_message(self, format, *args):
-        pass
-
-if __name__ == "__main__":
-    print(f"Starting {APP_NAME} in {APP_ENV} mode on port 8080...")
-    HTTPServer(("", 8080), Handler).serve_forever()
+func main() {
+  http.HandleFunc("/", handler)
+  log.Println("Server running on port 8080...")
+  log.Fatal(http.ListenAndServe(":8080", nil))
+}
 ```
 
 ---
@@ -93,11 +100,18 @@ if __name__ == "__main__":
 Create `Dockerfile`:
 
 ```dockerfile
-FROM python:3.12-slim
+# Stage 1: Build
+FROM golang:1.22-alpine AS builder
 WORKDIR /app
-COPY app.py .
+COPY main.go .
+RUN go build -o server main.go
+
+# Stage 2: Run
+FROM alpine:3.19
+WORKDIR /app
+COPY --from=builder /app/server .
 EXPOSE 8080
-CMD ["python", "app.py"]
+CMD ["./server"]
 ```
 
 ---
@@ -161,7 +175,7 @@ services:          # list of containers (services) to run
 
 ```text
 compose-demo/
-├── app.py
+├── main.go
 ├── Dockerfile
 └── docker-compose.yml
 ```
@@ -183,7 +197,7 @@ docker compose up -d
 **Expected output:**
 
 ```text
-[+] Building 8.2s (6/6) FINISHED
+[+] Building 32.4s (10/10) FINISHED
 [+] Running 2/2
  ✔ Container compose-demo-redis-1  Started
  ✔ Container compose-demo-web-1    Started
@@ -211,10 +225,10 @@ The `APP_ENV` and `APP_NAME` values from `docker-compose.yml` are now live insid
 docker compose ps
 ```
 
-```bash
+```text
 NAME                      IMAGE                  COMMAND           SERVICE   STATUS    PORTS
 compose-demo-redis-1      redis:7-alpine         "docker-entryp…"  redis     running   0.0.0.0:6379->6379/tcp
-compose-demo-web-1        compose-demo-web       "python app.py"   web       running   0.0.0.0:8080->8080/tcp
+compose-demo-web-1        compose-demo-web       "./server"         web       running   0.0.0.0:8080->8080/tcp
 ```
 
 ---
