@@ -68,11 +68,17 @@ Create `main.go`:
 package main
 
 import (
+  "context"
   "fmt"
   "log"
   "net/http"
   "os"
+
+  "github.com/redis/go-redis/v9"
 )
+
+var ctx = context.Background()
+var rdb *redis.Client
 
 func handler(w http.ResponseWriter, r *http.Request) {
   appEnv  := os.Getenv("APP_ENV")
@@ -83,15 +89,30 @@ func handler(w http.ResponseWriter, r *http.Request) {
   if appName == "" {
     appName = "MyApp"
   }
-  fmt.Fprintf(w, "Hello from %s! Environment: %s\n", appName, appEnv)
+
+  count, err := rdb.Incr(ctx, "visits").Result()
+  if err != nil {
+    http.Error(w, "Redis error: "+err.Error(), http.StatusInternalServerError)
+    return
+  }
+
+  fmt.Fprintf(w, "Hello from %s! Environment: %s\nVisit count: %d\n", appName, appEnv, count)
 }
 
 func main() {
+  redisAddr := os.Getenv("REDIS_ADDR")
+  if redisAddr == "" {
+    redisAddr = "redis:6379"
+  }
+  rdb = redis.NewClient(&redis.Options{Addr: redisAddr})
+
   http.HandleFunc("/", handler)
   log.Println("Server running on port 8080...")
   log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
+
+> 💡 The app connects to Redis using the hostname `redis` — this is the **service name** defined in `docker-compose.yml`. Docker Compose automatically creates a shared network so services can reach each other by name.
 
 ---
 
@@ -104,7 +125,10 @@ Create `Dockerfile`:
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 COPY main.go .
-RUN go build -o server main.go
+# Initialize module and fetch the Redis client library
+RUN go mod init compose-demo && \
+    go get github.com/redis/go-redis/v9 && \
+    go build -o server main.go
 
 # Stage 2: Run
 FROM alpine:3.19
@@ -113,6 +137,8 @@ COPY --from=builder /app/server .
 EXPOSE 8080
 CMD ["./server"]
 ```
+
+> 💡 `go mod init` + `go get` run inside the container during build — no Go installation needed on your machine.
 
 ---
 
@@ -131,6 +157,9 @@ services:
     environment:
       - APP_ENV=production
       - APP_NAME=Docker101App
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
     restart: unless-stopped
 
   redis:
@@ -152,6 +181,9 @@ services:          # list of containers (services) to run
     environment:             # environment variables passed into the container
       - APP_ENV=production
       - APP_NAME=Docker101App
+      - REDIS_ADDR=redis:6379  # hostname = Redis service name
+    depends_on:
+      - redis        # wait for Redis to start before starting web
     restart: unless-stopped  # auto-restart on crash, unless manually stopped
 
   redis:           # second service — a Redis cache
@@ -167,6 +199,7 @@ services:          # list of containers (services) to run
 | `image: redis:7-alpine` | Pull and use this existing image |
 | `ports` | Map host ports to container ports |
 | `environment` | Set environment variables inside the container |
+| `depends_on` | Start this service only after the listed services are up |
 | `restart: unless-stopped` | Restart policy for fault tolerance |
 
 ---
@@ -213,9 +246,21 @@ curl http://localhost:8080
 
 ```text
 Hello from Docker101App! Environment: production
+Visit count: 1
 ```
 
-The `APP_ENV` and `APP_NAME` values from `docker-compose.yml` are now live inside the container.
+Run it again:
+
+```bash
+curl http://localhost:8080
+```
+
+```text
+Hello from Docker101App! Environment: production
+Visit count: 2
+```
+
+Every request increments the counter stored in Redis. The `web` container is talking to the `redis` container via Docker Compose's internal network.
 
 ---
 
