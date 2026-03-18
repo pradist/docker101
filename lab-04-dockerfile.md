@@ -11,6 +11,7 @@ By the end of this lab, you will be able to:
 
 - Write a `Dockerfile` to define a custom image
 - Understand the core Dockerfile instructions: `FROM`, `WORKDIR`, `COPY`, `RUN`, `EXPOSE`, `CMD`
+- Use a **multi-stage build** to create a small production image
 - Build an image with `docker build`
 - Run and test a container from your custom image
 
@@ -48,26 +49,29 @@ cd my-app
 
 ---
 
-### Step 2 — Create a simple Python web app
+### Step 2 — Create a simple Go web app
 
-Create a file named `app.py`:
+Create a file named `main.go`:
 
-```python
-# app.py
-from http.server import HTTPServer, BaseHTTPRequestHandler
+```go
+// main.go
+package main
 
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Hello from my Docker container!")
+import (
+  "fmt"
+  "log"
+  "net/http"
+)
 
-    def log_message(self, format, *args):
-        pass  # suppress access logs for clarity
+func handler(w http.ResponseWriter, r *http.Request) {
+  fmt.Fprintln(w, "Hello from my Docker container!")
+}
 
-if __name__ == "__main__":
-    print("Server running on port 8080...")
-    HTTPServer(("", 8080), Handler).serve_forever()
+func main() {
+  http.HandleFunc("/", handler)
+  log.Println("Server running on port 8080...")
+  log.Fatal(http.ListenAndServe(":8080", nil))
+}
 ```
 
 ---
@@ -77,20 +81,30 @@ if __name__ == "__main__":
 Create a file named `Dockerfile` (no extension) in the same folder:
 
 ```dockerfile
-# Start from an official Python image (slim = smaller size)
-FROM python:3.12-slim
+# ── Stage 1: Build ──────────────────────────────────────
+# Use the official Go image to compile the binary
+FROM golang:1.22-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy our app file into the container
-COPY app.py .
+# Copy source code into the build container
+COPY main.go .
 
-# Expose port 8080 so Docker knows this container listens there
+# Compile the Go binary
+RUN go build -o server main.go
+
+# ── Stage 2: Run ────────────────────────────────────────
+# Use a minimal Alpine image — no Go toolchain needed
+FROM alpine:3.19
+
+WORKDIR /app
+
+# Copy only the compiled binary from Stage 1
+COPY --from=builder /app/server .
+
 EXPOSE 8080
 
-# The command to run when the container starts
-CMD ["python", "app.py"]
+CMD ["./server"]
 ```
 
 ---
@@ -99,19 +113,24 @@ CMD ["python", "app.py"]
 
 | Instruction | What it does |
 | ----------- | ------------ |
-| `FROM python:3.12-slim` | Use the official Python 3.12 slim image as the base |
+| `FROM golang:1.22-alpine AS builder` | Start a **build stage** using the official Go image; name it `builder` |
 | `WORKDIR /app` | Set `/app` as the working directory (created automatically if missing) |
-| `COPY app.py .` | Copy `app.py` from your machine into `/app` inside the image |
+| `COPY main.go .` | Copy `main.go` from your machine into the build container |
+| `RUN go build -o server main.go` | **Compile** the Go source into a binary named `server` |
+| `FROM alpine:3.19` | Start a **new, minimal stage** — the final image (no Go toolchain) |
+| `COPY --from=builder /app/server .` | Copy only the compiled binary from the `builder` stage |
 | `EXPOSE 8080` | Document that the app listens on port 8080 (informational) |
-| `CMD ["python", "app.py"]` | Default command to run when the container starts |
+| `CMD ["./server"]` | Default command to run when the container starts |
+
+> 💡 **Multi-stage build:** The final image contains only the binary (~15 MB), not the Go compiler (~250 MB). This is a best practice for production images.
 
 ---
 
 ### Step 5 — Verify your project structure
 
-```bash
+```text
 my-app/
-├── app.py
+├── main.go
 └── Dockerfile
 ```
 
@@ -132,13 +151,15 @@ docker build -t my-app:v1 .
 
 **Expected output:**
 
-```bash
-[+] Building 12.3s (7/7) FINISHED
+```text
+[+] Building 28.5s (9/9) FINISHED
  => [internal] load build definition from Dockerfile
- => [internal] load metadata for docker.io/library/python:3.12-slim
- => [1/3] FROM docker.io/library/python:3.12-slim
- => [2/3] WORKDIR /app
- => [3/3] COPY app.py .
+ => [builder 1/3] FROM docker.io/library/golang:1.22-alpine
+ => [builder 2/3] WORKDIR /app
+ => [builder 3/3] COPY main.go .
+ => [builder 4/3] RUN go build -o server main.go
+ => [stage-2 1/2] FROM docker.io/library/alpine:3.19
+ => [stage-2 2/2] COPY --from=builder /app/server .
  => exporting to image
  => => naming to docker.io/library/my-app:v1
 ```
@@ -151,10 +172,12 @@ docker build -t my-app:v1 .
 docker images my-app
 ```
 
-```bash
+```text
 REPOSITORY   TAG   IMAGE ID       CREATED          SIZE
-my-app       v1    3a7f1e2b9c4d   10 seconds ago   131MB
+my-app       v1    3a7f1e2b9c4d   10 seconds ago   15.6MB
 ```
+
+> Notice how small the image is — only **~15 MB**! The Go compiler (~250 MB) was used only in the build stage and is not included in the final image.
 
 ---
 
@@ -194,8 +217,8 @@ Or open your browser and go to `http://localhost:8080`.
 docker logs my-running-app
 ```
 
-```bash
-Server running on port 8080...
+```text
+2026/03/19 08:00:00 Server running on port 8080...
 ```
 
 ---
@@ -230,7 +253,8 @@ Layers are cached — unchanged layers are reused on rebuild (faster!)
 | `docker build -t <name>:<tag> .` | Build an image from a Dockerfile in the current folder |
 | `docker run -p <host>:<container>` | Map a port from your machine to the container |
 | `docker logs <name>` | View stdout/stderr output from a container |
-| `COPY` | Copies files from your machine into the image |
+| `RUN` | Execute a command during the image build (e.g., compile, install) |
+| `COPY --from=<stage>` | Copy files from a previous build stage (multi-stage) |
 | `CMD` | Defines the default start command (can be overridden at `docker run`) |
 
 ---
