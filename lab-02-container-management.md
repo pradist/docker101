@@ -13,6 +13,7 @@ By the end of this lab, you will be able to:
 - Run a container in the background (detached mode)
 - Expose a container port to your host machine
 - View a running web server in your browser
+- Serve your own custom HTML file from a container
 - Stop and restart a container
 - Remove containers you no longer need
 
@@ -34,6 +35,7 @@ By the end of this lab, you will be able to:
 | **Stopped / Exited** | The container's process has finished or was stopped |
 | **Detached mode (`-d`)** | The container runs in the background, freeing up your terminal |
 | **Port mapping (`-p`)** | Connects a port on your host to a port inside the container, e.g. `-p 8080:80` means host:8080 → container:80 |
+| **Volume mount (`-v`)** | Shares a file or folder from your host into the container, e.g. `-v /host/path:/container/path` |
 
 ---
 
@@ -136,7 +138,54 @@ You should see the **"Welcome to nginx!"** page in a new browser tab.
 
 ---
 
-### Step 6 — Stop the container
+### Step 6 — Serve your own HTML page
+
+Right now nginx is showing its default welcome page. Let's replace it with your own.
+
+**1. Create a custom `index.html`** — replace `Your Name` with your actual name:
+
+```bash
+cat > index.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>My Docker Page</title></head>
+<body>
+  <h1>Hello from Docker!</h1>
+  <p>This page is served by <strong>Your Name</strong> 🐳</p>
+</body>
+</html>
+EOF
+```
+
+**2. Remove the existing container** (we need to start a new one with a volume mount):
+
+```bash
+docker rm -f my-web
+```
+
+**3. Run nginx again, this time mounting your HTML file:**
+
+```bash
+docker run -d --name my-web -p 8080:80 \
+  -v $(pwd)/index.html:/usr/share/nginx/html/index.html \
+  nginx
+```
+
+| Flag | Meaning |
+| ---- | ------- |
+| `-v $(pwd)/index.html:/usr/share/nginx/html/index.html` | Mount your local `index.html` into the path nginx serves as its root page |
+
+**4. Verify your page:**
+
+```bash
+curl http://localhost:8080
+```
+
+You should see your custom HTML with your name in the response. Open the **Web Preview** in Cloud Shell to see it rendered in the browser.
+
+---
+
+### Step 7 — Stop the container
 
 ```bash
 docker stop my-web
@@ -152,7 +201,7 @@ Try `curl http://localhost:8080` now — you should get a **connection refused**
 
 ---
 
-### Step 7 — Start it again
+### Step 8 — Start it again
 
 ```bash
 docker start my-web
@@ -166,7 +215,7 @@ Run `docker ps` to confirm it is **Up** again. Port `8080` is accessible once mo
 
 ---
 
-### Step 8 — Remove a container
+### Step 9 — Remove a container
 
 You must stop a container before removing it (or use `-f` to force):
 
@@ -213,6 +262,7 @@ docker run -d  --name my-web  -p 8080:80  nginx
 | `docker ps` | List running containers |
 | `docker ps -a` | List all containers (running + stopped) |
 | `docker run -d --name <name> -p <host>:<container> <image>` | Run a container in background with a custom name and port mapping |
+| `docker run -d ... -v <host-path>:<container-path> <image>` | Mount a host file or folder into the container |
 | `docker stop <name>` | Gracefully stop a container |
 | `docker start <name>` | Start a stopped container |
 | `docker rm <name>` | Remove a stopped container |
@@ -226,6 +276,12 @@ docker ps                                  # running containers
 docker ps -a                               # all containers
 docker run -d --name my-web -p 8080:80 nginx
 curl http://localhost:8080                 # test the web server
+
+# serve your own HTML
+docker rm -f my-web
+docker run -d --name my-web -p 8080:80 \
+  -v $(pwd)/index.html:/usr/share/nginx/html/index.html nginx
+
 docker stop my-web
 docker start my-web
 docker rm my-web
