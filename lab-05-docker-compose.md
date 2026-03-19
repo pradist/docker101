@@ -394,20 +394,6 @@ docker compose down --rmi all
 
 ---
 
-## Congratulations
-
-You have completed the Docker 101 Lab Series!
-
-| Lab | Topic | Status |
-| --- | ----- | ------ |
-| Lab 1 | Your First Container | ✅ |
-| Lab 2 | Managing Containers | ✅ |
-| Lab 3 | Working with Images | ✅ |
-| Lab 4 | Build Your Own Image | ✅ |
-| Lab 5 | Docker Compose & Env Vars | ✅ |
-
----
-
 ## Navigation
 
 - Previous: [Lab 4: Build Your Own Image](lab-04-dockerfile.md)
