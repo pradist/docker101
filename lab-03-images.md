@@ -107,15 +107,15 @@ Run `docker images` — you'll see `node` with tag `20-alpine`.
 docker inspect alpine
 ```
 
-This outputs detailed JSON: OS, architecture, layers, environment variables, and more.
+This outputs detailed JSON: OS, layers, environment variables, and more.
 To extract just the OS info:
 
 ```bash
-docker inspect alpine --format '{{.Os}}/{{.Architecture}}'
+docker inspect alpine --format '{{.Os}}'
 ```
 
 ```bash
-linux/arm64
+linux
 ```
 
 ---
