@@ -32,8 +32,8 @@ Real applications often need **multiple containers working together** — for ex
 
 ```text
 ┌────────────────┐      ┌────────────────┐
-│   Web App      │─────▶│   Database     │
-│  (my-app)      │      │  (PostgreSQL)  │
+│   Web App      │─────▶│     Redis      │
+│  (my-app)      │      │                │
 └────────────────┘      └────────────────┘
 ```
 
@@ -81,6 +81,8 @@ var ctx = context.Background()
 var rdb *redis.Client
 
 func handler(w http.ResponseWriter, r *http.Request) {
+  log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
+
   appEnv  := os.Getenv("APP_ENV")
   appName := os.Getenv("APP_NAME")
   if appEnv == "" {
