@@ -64,6 +64,7 @@ import (
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
+  log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
   fmt.Fprintln(w, "Hello from my Docker container!")
 }
 
@@ -219,6 +220,8 @@ docker logs lab4-running-app
 
 ```text
 2026/03/19 08:00:00 Server running on port 8080...
+2026/03/19 08:00:05 172.17.0.1:54321 GET /
+2026/03/19 08:00:07 172.17.0.1:54322 GET /
 ```
 
 ---
