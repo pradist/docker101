@@ -11,6 +11,8 @@ By the end of this lab, you will be able to:
 
 - List running and stopped containers with `docker ps`
 - Run a container in the background (detached mode)
+- Expose a container port to your host machine
+- View a running web server in your browser
 - Stop and restart a container
 - Remove containers you no longer need
 
@@ -31,6 +33,7 @@ By the end of this lab, you will be able to:
 | **Running** | The container's process is currently active |
 | **Stopped / Exited** | The container's process has finished or was stopped |
 | **Detached mode (`-d`)** | The container runs in the background, freeing up your terminal |
+| **Port mapping (`-p`)** | Connects a port on your host to a port inside the container, e.g. `-p 8080:80` means host:8080 → container:80 |
 
 ---
 
@@ -67,16 +70,17 @@ a1b2c3d4e5f6   hello-world   "/hello"   5 minutes ago   Exited (0) 5 minutes ago
 
 ---
 
-### Step 3 — Run an nginx web server in the background
+### Step 3 — Run an nginx web server in the background with port mapping
 
 ```bash
-docker run -d --name my-web nginx
+docker run -d --name my-web -p 8080:80 nginx
 ```
 
 | Flag | Meaning |
 | ---- | ------- |
 | `-d` | Detached — run in background |
 | `--name my-web` | Give the container a human-friendly name |
+| `-p 8080:80` | Map port 8080 on your host to port 80 inside the container |
 | `nginx` | The image to use |
 
 **Expected output** — Docker prints just the container ID:
@@ -91,20 +95,48 @@ Status: Downloaded newer image for nginx:latest
 
 ---
 
-### Step 4 — Confirm it is running
+### Step 4 — Confirm it is running and the port is mapped
 
 ```bash
 docker ps
 ```
 
 ```bash
-CONTAINER ID   IMAGE   COMMAND                  CREATED         STATUS         PORTS     NAMES
-7f3b2c1a9e4d   nginx   "/docker-entrypoint.…"   10 seconds ago  Up 9 seconds   80/tcp    my-web
+CONTAINER ID   IMAGE   COMMAND                  CREATED         STATUS         PORTS                  NAMES
+7f3b2c1a9e4d   nginx   "/docker-entrypoint.…"   10 seconds ago  Up 9 seconds   0.0.0.0:8080->80/tcp   my-web
 ```
+
+Notice the **PORTS** column now shows `0.0.0.0:8080->80/tcp` — traffic arriving at port 8080 on your host is forwarded to port 80 inside the container.
 
 ---
 
-### Step 5 — Stop the container
+### Step 5 — Access the nginx welcome page
+
+**Option A — curl (works anywhere):**
+
+```bash
+curl http://localhost:8080
+```
+
+You should see the HTML of the nginx welcome page:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+...
+```
+
+**Option B — Browser (Google Cloud Shell):**
+
+Click the **Web Preview** button (top-right of Cloud Shell, looks like a box with an arrow) → **Preview on port 8080**.
+
+You should see the **"Welcome to nginx!"** page in a new browser tab.
+
+---
+
+### Step 6 — Stop the container
 
 ```bash
 docker stop my-web
@@ -116,9 +148,11 @@ my-web
 
 Run `docker ps` again — the container disappears from the list. Run `docker ps -a` — it reappears with status **Exited**.
 
+Try `curl http://localhost:8080` now — you should get a **connection refused** error, confirming the port is no longer accessible.
+
 ---
 
-### Step 6 — Start it again
+### Step 7 — Start it again
 
 ```bash
 docker start my-web
@@ -128,11 +162,11 @@ docker start my-web
 my-web
 ```
 
-Run `docker ps` to confirm it is **Up** again.
+Run `docker ps` to confirm it is **Up** again. Port `8080` is accessible once more.
 
 ---
 
-### Step 7 — Remove a container
+### Step 8 — Remove a container
 
 You must stop a container before removing it (or use `-f` to force):
 
@@ -158,9 +192,10 @@ docker run --rm hello-world
 ## What Just Happened?
 
 ```bash
-docker run -d --name my-web nginx
-           │         │      └── image name
-           │         └── human name for the container
+docker run -d  --name my-web  -p 8080:80  nginx
+           │          │           │         └── image name
+           │          │           └── host port 8080 → container port 80
+           │          └── human name for the container
            └── detached (run in background)
 ```
 
@@ -177,7 +212,7 @@ docker run -d --name my-web nginx
 | ------- | ------------ |
 | `docker ps` | List running containers |
 | `docker ps -a` | List all containers (running + stopped) |
-| `docker run -d --name <name> <image>` | Run a container in background with a custom name |
+| `docker run -d --name <name> -p <host>:<container> <image>` | Run a container in background with a custom name and port mapping |
 | `docker stop <name>` | Gracefully stop a container |
 | `docker start <name>` | Start a stopped container |
 | `docker rm <name>` | Remove a stopped container |
@@ -187,13 +222,14 @@ docker run -d --name my-web nginx
 ## Quick Reference
 
 ```bash
-docker ps                        # running containers
-docker ps -a                     # all containers
-docker run -d --name my-web nginx
+docker ps                                  # running containers
+docker ps -a                               # all containers
+docker run -d --name my-web -p 8080:80 nginx
+curl http://localhost:8080                 # test the web server
 docker stop my-web
 docker start my-web
 docker rm my-web
-docker run --rm hello-world      # auto-remove on exit
+docker run --rm hello-world                # auto-remove on exit
 ```
 
 ## Navigation
