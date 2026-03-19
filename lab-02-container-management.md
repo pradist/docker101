@@ -159,11 +159,12 @@ docker run --rm hello-world
 
 ```bash
 docker run -d --name my-web nginx
-        │   │   └── human name for the container
-        │   └── detached (run in background)
-        └── image name
+           │         │      └── image name
+           │         └── human name for the container
+           └── detached (run in background)
 ```
 
+- `docker run` **creates a brand-new container** from an image and starts it — every `docker run` gives you a fresh container
 - `docker stop` sends a **SIGTERM** signal → container shuts down gracefully
 - `docker start` brings a **stopped** container back (same container, same data)
 - `docker rm` **permanently deletes** the container record (not the image)
