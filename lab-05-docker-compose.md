@@ -53,8 +53,8 @@ Real applications often need **multiple containers working together** — for ex
 ### Step 1 — Create a project folder
 
 ```bash
-mkdir compose-demo
-cd compose-demo
+mkdir lab5-docker-compose
+cd lab5-docker-compose
 ```
 
 ---
@@ -128,7 +128,7 @@ FROM golang:1.22-alpine AS builder
 WORKDIR /app
 COPY main.go .
 # Initialize module and fetch the Redis client library
-RUN go mod init compose-demo && \
+RUN go mod init lab5-docker-compose && \
     go get github.com/redis/go-redis/v9 && \
     go build -o server main.go
 
@@ -209,7 +209,7 @@ services:          # list of containers (services) to run
 ### Step 6 — Verify your project structure
 
 ```text
-compose-demo/
+lab5-docker-compose/
 ├── main.go
 ├── Dockerfile
 └── docker-compose.yml
@@ -234,8 +234,8 @@ docker compose up -d
 ```text
 [+] Building 32.4s (10/10) FINISHED
 [+] Running 2/2
- ✔ Container compose-demo-redis-1  Started
- ✔ Container compose-demo-web-1    Started
+ ✔ Container lab5-docker-compose-redis-1  Started
+ ✔ Container lab5-docker-compose-app-1    Started
 ```
 
 ---
@@ -274,8 +274,8 @@ docker compose ps
 
 ```text
 NAME                      IMAGE                  COMMAND           SERVICE   STATUS    PORTS
-compose-demo-redis-1      redis:7-alpine         "docker-entryp…"  redis     running   0.0.0.0:6379->6379/tcp
-compose-demo-web-1        compose-demo-web       "./server"         web       running   0.0.0.0:8080->8080/tcp
+lab5-docker-compose-redis-1      redis:7-alpine         "docker-entryp…"  redis     running   0.0.0.0:6379->6379/tcp
+lab5-docker-compose-app-1        lab5-docker-compose-app       "./server"         web       running   0.0.0.0:8080->8080/tcp
 ```
 
 ---
@@ -329,9 +329,9 @@ docker compose down
 
 ```bash
 [+] Running 3/3
- ✔ Container compose-demo-web-1    Removed
- ✔ Container compose-demo-redis-1  Removed
- ✔ Network compose-demo_default    Removed
+ ✔ Container lab5-docker-compose-app-1    Removed
+ ✔ Container lab5-docker-compose-redis-1  Removed
+ ✔ Network lab5-docker-compose_default    Removed
 ```
 
 All containers are removed. Images and volumes are kept.
