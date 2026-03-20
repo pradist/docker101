@@ -43,8 +43,8 @@ Dockerfile  →  docker build  →  Image  →  docker run  →  Container
 ### Step 1 — Create a project folder
 
 ```bash
-mkdir lab4-app
-cd lab4-app
+mkdir lab4-dockerfile
+cd lab4-dockerfile
 ```
 
 ---
@@ -130,7 +130,7 @@ CMD ["./server"]
 ### Step 5 — Verify your project structure
 
 ```text
-lab4-app/
+lab4-dockerfile/
 ├── main.go
 └── Dockerfile
 ```
@@ -139,15 +139,15 @@ lab4-app/
 
 ### Step 6 — Build the image
 
-Make sure you are inside the `lab4-app` folder, then run:
+Make sure you are inside the `lab4-dockerfile` folder, then run:
 
 ```bash
-docker build -t lab4-app:v1 .
+docker build -t lab4-dockerfile:v1 .
 ```
 
 | Part | Meaning |
 | ---- | ------- |
-| `-t lab4-app:v1` | Tag the image with the name `lab4-app` and version `v1` |
+| `-t lab4-dockerfile:v1` | Tag the image with the name `lab4-dockerfile` and version `v1` |
 | `.` | Build context = current folder (Docker reads the `Dockerfile` here) |
 
 **Expected output:**
@@ -162,7 +162,7 @@ docker build -t lab4-app:v1 .
  => [stage-2 1/2] FROM docker.io/library/alpine:3.19
  => [stage-2 2/2] COPY --from=builder /app/server .
  => exporting to image
- => => naming to docker.io/library/lab4-app:v1
+ => => naming to docker.io/library/lab4-dockerfile:v1
 ```
 
 ---
@@ -170,12 +170,12 @@ docker build -t lab4-app:v1 .
 ### Step 7 — Confirm the image exists
 
 ```bash
-docker images lab4-app
+docker images lab4-dockerfile
 ```
 
 ```text
 REPOSITORY   TAG   IMAGE ID       CREATED          SIZE
-lab4-app       v1    3a7f1e2b9c4d   10 seconds ago   15.6MB
+lab4-dockerfile       v1    3a7f1e2b9c4d   10 seconds ago   15.6MB
 ```
 
 > Notice how small the image is — only **~15 MB**! The Go compiler (~250 MB) was used only in the build stage and is not included in the final image.
@@ -185,14 +185,14 @@ lab4-app       v1    3a7f1e2b9c4d   10 seconds ago   15.6MB
 ### Step 8 — Run your custom container
 
 ```bash
-docker run -d -p 8080:8080 --name lab4-running-app lab4-app:v1
+docker run -d -p 8080:8080 --name lab4-dockerfile-running lab4-dockerfile:v1
 ```
 
 | Flag | Meaning |
 | ---- | ------- |
 | `-d` | Run in background |
 | `-p 8080:8080` | Map port 8080 on your machine → port 8080 in the container |
-| `--name lab4-running-app` | Give the container a name |
+| `--name lab4-dockerfile-running` | Give the container a name |
 
 ---
 
@@ -215,7 +215,7 @@ Or open your browser and go to `http://localhost:8080`.
 ### Step 10 — View the container logs
 
 ```bash
-docker logs lab4-running-app
+docker logs lab4-dockerfile-running
 ```
 
 ```text
@@ -229,8 +229,8 @@ docker logs lab4-running-app
 ### Step 11 — Clean up
 
 ```bash
-docker stop lab4-running-app
-docker rm lab4-running-app
+docker stop lab4-dockerfile-running
+docker rm lab4-dockerfile-running
 ```
 
 ---
@@ -238,7 +238,7 @@ docker rm lab4-running-app
 ## What Just Happened?
 
 ```text
-docker build -t lab4-app:v1 .
+docker build -t lab4-dockerfile:v1 .
                 │      │  └── build context (current folder)
                 │      └── tag (name:version)
                 └── flag for tagging
@@ -266,19 +266,19 @@ Layers are cached — unchanged layers are reused on rebuild (faster!)
 
 ```bash
 # Build
-docker build -t lab4-app:v1 .
+docker build -t lab4-dockerfile:v1 .
 
 # Run with port mapping
-docker run -d -p 8080:8080 --name lab4-running-app lab4-app:v1
+docker run -d -p 8080:8080 --name lab4-dockerfile-running lab4-dockerfile:v1
 
 # Test
 curl http://localhost:8080
 
 # Logs
-docker logs lab4-running-app
+docker logs lab4-dockerfile-running
 
 # Clean up
-docker stop lab4-running-app && docker rm lab4-running-app
+docker stop lab4-dockerfile-running && docker rm lab4-dockerfile-running
 ```
 
 ---
